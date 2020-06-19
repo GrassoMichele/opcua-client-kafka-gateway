@@ -11,97 +11,6 @@ from opcua.client import ua_client
 from opcua.ua.ua_binary import struct_from_binary
 from opcua.ua.uaerrors import BadTimeout, BadNoSubscription, BadSessionClosed
 
-def best_endpoint_selection(client, server, security_policies_uri, printable=False):
-	endpoints = client.connect_and_get_server_endpoints()
-
-	if printable: print(f"\n\n{'-'*10} SERVER: {server['address']} {'-'*10}")
-	
-	best_sec_lvl = -1
-	for i, endpoint in enumerate(endpoints):
-		if printable: print(dedent(f"""
-			{'-'*10} Endpoint {i+1} {'-'*10}
-			Security level: {endpoint.SecurityLevel}
-			EndpointUrl: {endpoint.EndpointUrl}
-			SecurityMode : {MessageSecurityMode(endpoint.SecurityMode).name}
-			SecurityPolicyUri : {endpoint.SecurityPolicyUri}
-			TransportProfileUri : {endpoint.TransportProfileUri}
-			"""))
-		if endpoint.SecurityLevel > best_sec_lvl and endpoint.SecurityPolicyUri in security_policies_uri: 
-			best_endpoint = endpoint
-			best_sec_lvl = best_endpoint.SecurityLevel	
-	
-	if printable: print(dedent(f"""
-		{'-'*10} BEST ENDPOINT SELECTED {'-'*10}
-		Security level: {best_endpoint.SecurityLevel}
-		EndpointUrl: {best_endpoint.EndpointUrl}
-		SecurityMode : {MessageSecurityMode(best_endpoint.SecurityMode).name}
-		SecurityPolicyUri : {best_endpoint.SecurityPolicyUri}
-		TransportProfileUri : {best_endpoint.TransportProfileUri}
-		"""))
-	return best_endpoint
-
-# Andrebbe tolta in favore del json	
-def user_authentication(client):			
-	while(True):
-		auth_selection = input(dedent(
-		"""
-		Authentication Mode:
-		1. Anonymous
-		2. Username
-		3. Certificate
-		: """)) 
-		
-		if auth_selection == str(1):
-			break
-		elif auth_selection == str(2):
-			username = input("\nUsername: ")
-			password = input("\nPassword: ")
-			client.set_user(username)
-			client.set_password(password)
-			break
-		elif auth_selection == str(3):
-			client.load_client_certificate("client_certificate.pem")
-			client.load_private_key("client_key.pem")
-			break
-		else:
-			print("\nSelection not allowed!")
-	return client
-	
-def client_connection(index, server, security_policies_uri, auth=False, printable=False):
-	client = Client(server["address"])	
-	try:
-		best_endpoint = best_endpoint_selection(client, server, security_policies_uri, printable)
-		
-		client = Client(best_endpoint.EndpointUrl)	
-		client.application_uri = "urn:freeopcua:client"
-		client.description = "OPCUA-Client-Kafka-Gateway"
-		
-		# Questo dovrebbe avvenire mediante codice
-		if auth: client = user_authentication(client)	
-		
-		policy = best_endpoint.SecurityPolicyUri.split('#')[1]		
-		if policy != "None": 
-			security_string = str(policy) + ',' + str(MessageSecurityMode(best_endpoint.SecurityMode).name) + ',client_certificate.pem' + ',client_key.pem' 
-			client.set_security_string(security_string)	
-		
-		client.connect()		
-		return client		
-	except:
-		return
-	#DOMANDA: Server Application Instance Certificate validation?	
-
-def servers_connection(servers, security_policies_uri):
-	clients_list = [None for s in servers]
-	for i,s in enumerate(servers):	
-		s["working"] = False
-		client = client_connection(i, s, security_policies_uri, auth=False, printable=True) 
-		if client == None: 
-			print(f"\nERROR: Cannot connect to server: {s['address']}!")
-		else:
-			clients_list[i] = client
-			s["working"] = True
-			print(f"\nConnected to Server {s['address']}!")
-	return clients_list
 
 def read_nodes_from_json(servers):
     # Nodes setting function
@@ -134,9 +43,106 @@ def read_nodes_from_json(servers):
 		nodes_to_handle.append(tuple([nodes_to_read_s, nodes_to_monitor_s]))
 	if wrong_json:
 		if(input("ERRORS in JSON configuration file.\nPress y to continue (ignoring wrong nodes), any other key to exit: ")!="y"):
-			sys.exit(0)
-		
+			sys.exit(0)		
 	return nodes_to_handle
+
+def best_endpoint_selection(client, server, security_policies_uri, printable=False):
+	endpoints = client.connect_and_get_server_endpoints()
+
+	if printable: print(f"\n\n{'-'*10} SERVER: {server['address']} {'-'*10}")
+	
+	best_sec_lvl = -1
+	for i, endpoint in enumerate(endpoints):
+		if printable: print(dedent(f"""
+			{'-'*10} Endpoint {i+1} {'-'*10}
+			Security level: {endpoint.SecurityLevel}
+			EndpointUrl: {endpoint.EndpointUrl}
+			SecurityMode : {MessageSecurityMode(endpoint.SecurityMode).name}
+			SecurityPolicyUri : {endpoint.SecurityPolicyUri}
+			TransportProfileUri : {endpoint.TransportProfileUri}
+			"""))
+		if endpoint.SecurityLevel > best_sec_lvl and endpoint.SecurityPolicyUri in security_policies_uri: 
+			best_endpoint = endpoint
+			best_sec_lvl = best_endpoint.SecurityLevel	
+	
+	if printable: print(dedent(f"""
+		{'-'*10} BEST ENDPOINT SELECTED {'-'*10}
+		Security level: {best_endpoint.SecurityLevel}
+		EndpointUrl: {best_endpoint.EndpointUrl}
+		SecurityMode : {MessageSecurityMode(best_endpoint.SecurityMode).name}
+		SecurityPolicyUri : {best_endpoint.SecurityPolicyUri}
+		TransportProfileUri : {best_endpoint.TransportProfileUri}
+		"""))
+	return best_endpoint
+
+def client_auth(client, server):
+	auth_types = ("anonymous", "username/password", "certificate")	
+	try:
+		# dictionaries list
+		user_auth = server["auth"]
+		if user_auth["type"] in auth_types:
+			if user_auth["type"] == "username/password":
+				client.set_user(user_auth["username"])
+				client.set_password(user_auth["password"])
+			elif user_auth["type"] == "certificate":
+				client.load_client_certificate(user_auth["cert_path"])
+				client.load_private_key(user_auth["private_key_path"])				
+		else:
+			print(f"\nUser authentication type for server {server['address']} is not valid! Trying Anonymous logon.")
+	except:
+		print(f"\nError in JSON configuration file. User authentication for server {server['address']} failed! Trying Anonymous logon.")
+	return client 
+	
+def client_connection(index, server, security_policies_uri, printable=False):
+	client = Client(server["address"])	
+	try:
+		best_endpoint = best_endpoint_selection(client, server, security_policies_uri, printable)
+		
+		client = Client(best_endpoint.EndpointUrl)	
+		client.application_uri = "urn:freeopcua:client"
+		client.description = "OPCUA-Client-Kafka-Gateway"
+		
+		client = client_auth(client, server)
+		
+		policy = best_endpoint.SecurityPolicyUri.split('#')[1]		
+		if policy != "None": 
+			security_string = str(policy) + ',' + str(MessageSecurityMode(best_endpoint.SecurityMode).name) + ',client_certificate.pem' + ',client_key.pem' 
+			client.set_security_string(security_string)	
+		
+		client.connect()		
+		return client		
+	except Exception as ex:
+		print(f"\nEXCEPTION in client connection: {ex.__class__, ex.args}")
+		return
+	#DOMANDA: Server Application Instance Certificate validation?	
+
+def servers_connection(servers, security_policies_uri):
+	clients_list = [None for s in servers]
+	for i,s in enumerate(servers):	
+		s["working"] = False
+		client = client_connection(i, s, security_policies_uri, printable=True) 
+		if client == None: 
+			print(f"\nERROR: Cannot connect to server: {s['address']}!")
+			# workaround for username/password and certificate authentication not accepted from server.
+			print(f"\nTrying connection with Anonymous logon...")
+			s["auth"]["type"] = "anonymous"
+			client = client_connection(i, s, security_policies_uri)
+			if client == None:
+				print(f"\nTrying connection with None security policy...")
+				client = client_connection(i, s, ['http://opcfoundation.org/UA/SecurityPolicy#None'])
+				if client != None:
+					clients_list[i] = client
+					s["working"] = True
+					print(f"\nConnected to Server {s['address']}!")
+			else:
+				clients_list[i] = client
+				s["working"] = True
+				print(f"\nConnected to Server {s['address']}!")
+		else:
+			clients_list[i] = client
+			s["working"] = True
+			print(f"\nConnected to Server {s['address']}!")
+	return clients_list
 
 # removing invalid (not in address space) nodes from running servers 
 def removing_invalid_nodes(clients_list, servers, nodes_to_handle):
@@ -220,7 +226,7 @@ def check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, s
 			# check if previously down servers are now up
 			if s["working"] == False:
 				# best_endpoint_selection and client_connection  
-				client = client_connection(i, s, security_policies_uri, auth=False, printable=False)
+				client = client_connection(i, s, security_policies_uri, printable=False)
 				if client != None: 
 					clients_list[i] = client
 					s["working"] = True

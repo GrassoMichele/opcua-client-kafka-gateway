@@ -5,7 +5,7 @@ import time
 from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, sub_and_monitored_items_creation, check_servers_status, polling_and_monitoring_service 
 
 def main():
-	with open("config.json") as f:
+	with open("config_auth.json") as f:
 		try:
 			data = json.load(f)
 		except Exception as ex:
@@ -21,8 +21,9 @@ def main():
 		print("ERROR in JSON configuration file! Exit...")
 		os._exit(0)
 
-	security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']
-	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']		
+	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']
+	
+	security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']		
 	
 	# verify json validity
 	nodes_to_handle = read_nodes_from_json(servers)
