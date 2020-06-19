@@ -91,16 +91,17 @@ def client_connection(index, server, security_policies_uri, auth=False, printabl
 	#DOMANDA: Server Application Instance Certificate validation?	
 
 def servers_connection(servers, security_policies_uri):
-	clients_list, working_servers = [None for s in servers],[None for s in servers]
-	for i,s in enumerate(servers):							
+	clients_list = [None for s in servers]
+	for i,s in enumerate(servers):	
+		s["working"] = False
 		client = client_connection(i, s, security_policies_uri, auth=False, printable=True) 
 		if client == None: 
 			print(f"\nERROR: Cannot connect to server: {s['address']}!")
 		else:
 			clients_list[i] = client
-			working_servers[i] = s
+			s["working"] = True
 			print(f"\nConnected to Server {s['address']}!")
-	return clients_list, working_servers
+	return clients_list
 
 def read_nodes_from_json(servers):
     # Nodes setting function
@@ -138,10 +139,10 @@ def read_nodes_from_json(servers):
 	return nodes_to_handle
 
 # removing invalid (not in address space) nodes from running servers 
-def removing_invalid_nodes(clients_list, working_servers, nodes_to_handle):
+def removing_invalid_nodes(clients_list, servers, nodes_to_handle):
 	# recall this function should permit to read (Polling service) or monitor (Monitored Items service) previously missing nodes in servers address allowing to add them subsequently (anyway they have to appear in json file).
-	for i, s in enumerate(working_servers):
-		if s != None:
+	for i, s in enumerate(servers):
+		if s["working"] != False:
 			# monitored items nodes 
 			for n in nodes_to_handle[i][1]:
 				try:
@@ -194,48 +195,48 @@ def _create_monitored_items(sub, dirty_nodes, attr, queuesize=0):
 	return mids
 
 					
-def sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval):	
+def sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval):	
 	handler = SubHandler(clients_list, queues)		
 	# we are assuming a subscription per client			
-	for i, s in enumerate(working_servers):
-		if s != None and subs[i]==None and len(nodes_to_handle[i][1]) > 0:
+	for i, s in enumerate(servers):
+		if s["working"] != False and subs[i]==None and len(nodes_to_handle[i][1]) > 0:
 			# create subscription and monitored items 
 			sub = clients_list[i].create_subscription(publishingInterval, handler)
 			handle = _create_monitored_items(sub, nodes_to_handle[i][1], ua.AttributeIds.Value)	
 			subs[i] = tuple((sub, handle))
 			queues[i] = queue.Queue()
 	
-def check_servers_status(servers, clients_list, working_servers, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval):
+def check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval):
 	for i, s in enumerate(servers):
 		try:
 			# "ns=0;i=2259" is ServerStatus node
 			clients_list[i].get_node("ns=0;i=2259").get_data_value()	
 		except:
 			# check if previously working servers are still up
-			if working_servers[i] != None:
+			if s["working"] != False:
 				print(f"\nERROR: SERVER {s['address']} IS DOWN!")
-				working_servers[i], clients_list[i], subs[i] = None, None, None
+				s["working"], clients_list[i], subs[i] = False, None, None
 				
 			# check if previously down servers are now up
-			if working_servers[i] == None:
+			if s["working"] == False:
 				# best_endpoint_selection and client_connection  
 				client = client_connection(i, s, security_policies_uri, auth=False, printable=False)
 				if client != None: 
 					clients_list[i] = client
-					working_servers[i] = s
+					s["working"] = True
 					print(f"\nCONNECTED to Server {s['address']}!")				
 				# sub and monitored_items creation 
-				sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
+				sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval)
 					
 	# this way we remove wrong nodes from NEW servers and it should remove a node if exists no more (has been deleted).
-	removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
+	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
 	
 
-def polling_and_monitoring_service (servers, clients_list, working_servers, nodes_to_handle, queues):
+def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queues):
 	# READ SERVICE e MONITORED ITEMS notifications function
-	for i, s in enumerate(working_servers): 	
+	for i, s in enumerate(servers): 	
 		print(f"\n\n{'-'*10} SERVER: {servers[i]['address']} {'-'*10}")
-		if s != None:		
+		if s["working"]!= False:		
 			print("\nREAD service: ")
 			if len(nodes_to_handle[i][0]) > 0:				
 				for n in nodes_to_handle[i][0]:
@@ -270,15 +271,6 @@ def polling_and_monitoring_service (servers, clients_list, working_servers, node
 					"""))
 				except queue.Empty:
 					break
-			"""except:
-			print("\nServer disconnected, connection retrying!")
-			clients_list.pop(i)
-			working_servers.pop(i)
-			client = client_connection(url) 
-			if client != None: 
-				
-				clients_list.append(client)
-				working_servers.append(s)"""
 		else:
 			print("Server is DOWN!")
 

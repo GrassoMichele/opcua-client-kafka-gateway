@@ -22,18 +22,18 @@ def main():
 		os._exit(0)
 
 	security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']
-	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']
+	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']		
 	
 	# verify json validity
 	nodes_to_handle = read_nodes_from_json(servers)
 	
 	#Servers connection
-	clients_list, working_servers = servers_connection(servers, security_policies_uri)
+	clients_list = servers_connection(servers, security_policies_uri)
 	
 	print("\n"*3 , f"{'-'*60}")
 	
 	#Variables Management
-	removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
+	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
 	
 	subs, queues = [None for i in clients_list], [None for i in clients_list]
 	
@@ -58,16 +58,16 @@ def main():
 	
 	signal.signal(signal.SIGINT, signal_handler)
 	
-	sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
+	sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval)
 			
 	time.sleep(0.1)
 
 	counter = 1 
 	while(True):
 		#Check on new working servers and servers that are working no more.
-		check_servers_status(servers, clients_list, working_servers, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
+		check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
 		print(f"\n{'*'*15} ITERATION n. {counter} {'*'*15}")
-		polling_and_monitoring_service(servers, clients_list, working_servers, nodes_to_handle, queues)
+		polling_and_monitoring_service(servers, clients_list, nodes_to_handle, queues)
 		
 		counter += 1
 		time.sleep(pollingRate)	
