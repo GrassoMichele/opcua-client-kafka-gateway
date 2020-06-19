@@ -156,8 +156,7 @@ def removing_invalid_nodes(clients_list, working_servers, nodes_to_handle):
 					clients_list[i].get_node(n).get_data_value()	
 				except:
 					print(f"\n\nWARNING: Node {n['node']} of server {s['address']} for Polling service removed because it's not in address space.\n\n")
-					nodes_to_handle[i][0].remove(n)
-	return nodes_to_handle					
+					nodes_to_handle[i][0].remove(n)				
 
 class SubHandler(object):
 	def __init__(self, clients_list, queues):
@@ -204,8 +203,7 @@ def sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_han
 			sub = clients_list[i].create_subscription(publishingInterval, handler)
 			handle = _create_monitored_items(sub, nodes_to_handle[i][1], ua.AttributeIds.Value)	
 			subs[i] = tuple((sub, handle))
-			queues[i] = queue.Queue()			
-	return subs, queues
+			queues[i] = queue.Queue()
 	
 def check_servers_status(servers, clients_list, working_servers, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval):
 	for i, s in enumerate(servers):
@@ -227,11 +225,10 @@ def check_servers_status(servers, clients_list, working_servers, nodes_to_handle
 					working_servers[i] = s
 					print(f"\nCONNECTED to Server {s['address']}!")				
 				# sub and monitored_items creation 
-				subs, queues = sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
+				sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
 					
 	# this way we remove wrong nodes from NEW servers and it should remove a node if exists no more (has been deleted).
-	nodes_to_handle = removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
-	return clients_list, working_servers, nodes_to_handle, subs, queues
+	removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
 	
 
 def polling_and_monitoring_service (servers, clients_list, working_servers, nodes_to_handle, queues):
@@ -284,7 +281,6 @@ def polling_and_monitoring_service (servers, clients_list, working_servers, node
 				working_servers.append(s)"""
 		else:
 			print("Server is DOWN!")
-	return queues
 
 # This function is a patching of _call_publish_callback function from UaClient module to handle unexpected server closing.
 def our_call_publish_callback(self, future):

@@ -33,7 +33,7 @@ def main():
 	print("\n"*3 , f"{'-'*60}")
 	
 	#Variables Management
-	nodes_to_handle = removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
+	removing_invalid_nodes(clients_list, working_servers, nodes_to_handle)
 	
 	subs, queues = [None for i in clients_list], [None for i in clients_list]
 	
@@ -58,16 +58,16 @@ def main():
 	
 	signal.signal(signal.SIGINT, signal_handler)
 	
-	subs, queues = sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
+	sub_and_monitored_items_creation(clients_list, working_servers, nodes_to_handle, subs, queues, publishingInterval)
 			
 	time.sleep(0.1)
 
 	counter = 1 
 	while(True):
 		#Check on new working servers and servers that are working no more.
-		clients_list, working_servers, nodes_to_handle, subs, queues = check_servers_status(servers, clients_list, working_servers, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
+		check_servers_status(servers, clients_list, working_servers, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
 		print(f"\n{'*'*15} ITERATION n. {counter} {'*'*15}")
-		queues = polling_and_monitoring_service(servers, clients_list, working_servers, nodes_to_handle, queues)
+		polling_and_monitoring_service(servers, clients_list, working_servers, nodes_to_handle, queues)
 		
 		counter += 1
 		time.sleep(pollingRate)	
