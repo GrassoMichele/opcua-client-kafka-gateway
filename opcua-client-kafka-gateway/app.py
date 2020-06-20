@@ -5,7 +5,7 @@ import time
 from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, sub_and_monitored_items_creation, check_servers_status, polling_and_monitoring_service 
 
 def main():
-	with open("config_auth.json") as f:
+	with open("config.json") as f:
 		try:
 			data = json.load(f)
 		except Exception as ex:

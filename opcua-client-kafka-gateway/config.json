@@ -2,6 +2,9 @@
 	"Servers": [
 		{
 			"address": "opc.tcp://opcuademo.sterfive.com:26543",			
+			"auth": {
+				"type":"anonymous"
+			},
 			"Variables": [
 				{
 					"nodeId": {"ns":3, "s":"Scalar_Simulation_String"},
@@ -12,7 +15,12 @@
 			]			
 		},
 		{
-			"address": "opc.tcp://MicheleGrassoPC:48010",			
+			"address": "opc.tcp://MicheleGrassoPC:48010",
+			"auth": {
+				"type":"certificate",
+				"cert_path":"client_certificate.pem",
+				"private_key_path":"client_key.pem"
+			},
 			"Variables": [
 				{
 					"nodeId": {"ns":2, "s":"Demo.Dynamic.Scalar.Byte"},
@@ -28,7 +36,12 @@
 			]			
 		},
 		{
-			"address": "opc.tcp://michelegrassopc:51210/UA/SampleServer",			
+			"address": "opc.tcp://michelegrassopc:51210/UA/SampleServer",
+			"auth": {
+				"type":"username/password",
+				"username":"pippo",
+				"password":"baudo"
+			},
 			"Variables": [
 				{
 					"nodeId": {"ns":2, "i":10844},
