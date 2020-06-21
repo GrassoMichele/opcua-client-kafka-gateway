@@ -1,2 +1,3 @@
 opcua
 kafka-python
+azure-storage-blob
