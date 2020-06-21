@@ -72,5 +72,6 @@
 	],
 	"KafkaServer": "localhost:9092",
 	"PollingRate": 5,
-	"PublishingInterval": 2000
+	"PublishingInterval": 2000,
+	"AzureBlobStorageConnectionString": "DefaultEndpointsProtocol=https;AccountName=opcuakafkastorage;AccountKey=ejnCC1fFRIoNSMMAkKSX9hF8G3Smp+OcwtbPZmYPfefQIp4/kkExVxxOyN7xz2pEIxM5rYvlNOP/6G+nhTBhwQ==;EndpointSuffix=core.windows.net"
 }
