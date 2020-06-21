@@ -3,6 +3,7 @@ import signal
 import json
 import time
 from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, sub_and_monitored_items_creation, check_servers_status, polling_and_monitoring_service 
+from utility.kafka_custom_lib import connect_kafka_producer
 
 def main():
 	with open("config.json") as f:
@@ -40,6 +41,8 @@ def main():
 	
 	def signal_handler(sig, frame):
 		print("\nCLIENT STOPPED! (You pressed CTRL+C)")
+		if kafka_producer is not None:
+			kafka_producer.close()
 		for i, c in enumerate(clients_list):	
 			if c != None:
 				try:
@@ -60,7 +63,10 @@ def main():
 	signal.signal(signal.SIGINT, signal_handler)
 	
 	sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval)
-			
+		
+	# Kafka Producer
+	kafka_producer = connect_kafka_producer(kafka_addr)
+		
 	time.sleep(0.1)
 
 	counter = 1 
@@ -68,7 +74,7 @@ def main():
 		#Check on new working servers and servers that are working no more.
 		check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
 		print(f"\n{'*'*15} ITERATION n. {counter} {'*'*15}")
-		polling_and_monitoring_service(servers, clients_list, nodes_to_handle, queues)
+		polling_and_monitoring_service(servers, clients_list, nodes_to_handle, queues, kafka_producer)
 		
 		counter += 1
 		time.sleep(pollingRate)	

@@ -11,6 +11,8 @@ from opcua.client import ua_client
 from opcua.ua.ua_binary import struct_from_binary
 from opcua.ua.uaerrors import BadTimeout, BadNoSubscription, BadSessionClosed
 
+from .kafka_custom_lib import publish_message
+
 
 def read_nodes_from_json(servers):
     # Nodes setting function
@@ -173,7 +175,7 @@ class SubHandler(object):
 	def datachange_notification(self, node, val, data):
 		try:
 			i = [c.uaclient if c is not None else None for c in self.clients_list].index(node.server)
-			notification = {"node":node, "value":data.monitored_item.Value.Value, "status":data.monitored_item.Value.StatusCode, "sourceTimestamp":data.monitored_item.Value.SourceTimestamp, "serverTimestamp":data.monitored_item.Value.ServerTimestamp}
+			notification = {"server":self.clients_list[i].server_url.netloc, "node":node.nodeid.to_string(), "value":val, "status":data.monitored_item.Value.StatusCode.name, "sourceTimestamp":str(data.monitored_item.Value.SourceTimestamp), "serverTimestamp":str(data.monitored_item.Value.ServerTimestamp)}
 			self.queues[i].put(notification)
 		except ValueError:
 			pass						
@@ -238,7 +240,7 @@ def check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, s
 	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
 	
 
-def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queues):
+def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queues, kafka_producer):
 	# READ SERVICE e MONITORED ITEMS notifications function
 	for i, s in enumerate(servers): 	
 		print(f"\n\n{'-'*10} SERVER: {servers[i]['address']} {'-'*10}")
@@ -247,14 +249,17 @@ def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queu
 			if len(nodes_to_handle[i][0]) > 0:				
 				for n in nodes_to_handle[i][0]:
 					try:
-						data_v = clients_list[i].get_node(n).get_data_value()	
+						data_v = clients_list[i].get_node(n).get_data_value()
+						data_to_send = {"server":clients_list[i].server_url.netloc, "node":n, "value":data_v.Value.Value, "status":data_v.StatusCode.name, "sourceTimestamp":str(data_v.SourceTimestamp), "serverTimestamp":str(data_v.ServerTimestamp)}
 						print(dedent(f"""
-						Node: {n}
-						Value: {data_v.Value.Value} 
-						StatusCode: {data_v.StatusCode.name} 
-						SourceTimestamp: {data_v.SourceTimestamp} 
-						ServerTimestamp: {data_v.ServerTimestamp}
+						Server: {data_to_send['server']}
+						Node: {data_to_send['node']}
+						Value: {data_to_send['value']} 
+						StatusCode: {data_to_send['status']} 
+						SourceTimestamp: {data_to_send['sourceTimestamp']} 
+						ServerTimestamp: {data_to_send['serverTimestamp']}
 						"""))
+						publish_message(kafka_producer, "opcua_polling", 'node', data_to_send)
 					except:
 						# this could be true only if something happens to server or a node has been removed.
 						print(f"\nDetected a problem with node {n} from this server.")							
@@ -269,12 +274,14 @@ def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queu
 				try:			 
 					mon_item_notif = queues[i].get_nowait()
 					print(dedent(f"""
+					Server: {mon_item_notif['server']}
 					Node: {mon_item_notif['node']}
 					Value: {mon_item_notif['value']} 
 					StatusCode: {mon_item_notif['status']} 
 					SourceTimestamp: {mon_item_notif['sourceTimestamp']} 
 					ServerTimestamp: {mon_item_notif['serverTimestamp']}
 					"""))
+					publish_message(kafka_producer, "opcua_monitoreditems", 'node', mon_item_notif)
 				except queue.Empty:
 					break
 		else:
