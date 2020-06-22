@@ -7,13 +7,7 @@ from kafka import KafkaConsumer
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 from azure.core.exceptions import ResourceExistsError
 
-def signal_handler(sig, frame):
-		print("\nCONSUMER STOPPED! (You pressed CTRL+C)")
-		closing_event.set() 
-		for thread in threads:
-			thread.join()
-
-def read_from_kafka(topic_name, kafka_addr, closing_event):
+def read_from_kafka(topic_name, kafka_addr, blob_service_client, closing_event):
 		try:
 			kafka_consumer = KafkaConsumer(topic_name, auto_offset_reset='latest',
 								 bootstrap_servers=[kafka_addr], 
@@ -31,7 +25,7 @@ def read_from_kafka(topic_name, kafka_addr, closing_event):
 				print(f"\nTopic: {topic_name}\n {message}")		
 				# Create a blob client
 				try:
-					blob_name = message["server"] + "\\" + "("+ message["node"] + ")-" + message["sourceTimestamp"]
+					blob_name = message["server"] + "\\" + message["node"]+ "\\" + message["sourceTimestamp"]
 					blob_client = blob_service_client.get_blob_client(container=topic_name, blob=blob_name)
 					# Upload the created file
 					blob_client.upload_blob(json.dumps(message))
@@ -45,11 +39,17 @@ def read_from_kafka(topic_name, kafka_addr, closing_event):
 			
 		if kafka_consumer is not None:
 			kafka_consumer.close()		
-		
-if __name__ == '__main__':
-	signal.signal(signal.SIGINT, signal_handler)
 	
-	with open("config.json") as f:
+def main():
+	
+	def signal_handler(sig, frame):
+		print("\nCONSUMER STOPPED! (You pressed CTRL+C)")
+		closing_event.set() 
+		thread_opc.join()
+
+	signal.signal(signal.SIGINT, signal_handler)
+		
+	with open("config_kafkaConsumer.json") as f:
 		try:
 			data = json.load(f)
 		except Exception as ex:
@@ -65,25 +65,24 @@ if __name__ == '__main__':
 		
 	blob_service_client = BlobServiceClient.from_connection_string(azure_blob_connection_string)
 	# Create the container	
-	topic_names = ["opcua-polling", "opcua-monitoreditems"]
-	for t in topic_names:
-		try:
-			blob_service_client.create_container(t)
-			print(f"Container {t} created!")
-		except ResourceExistsError:
-			print(f"\nContainer {t} already exists!") 						 
+	topic_name = "opcua-nodes"
+	try:
+		blob_service_client.create_container(topic_name)
+		print(f"Container {topic_name} created!")
+	except ResourceExistsError:
+		print(f"\nContainer {topic_name} already exists!") 						 
 	
 	print("\nCONSUMER STARTED...Press CTRL+C to STOP.")
 	
 	closing_event = threading.Event()
 	
-	# 2 Thread, 1 per polling_consumer e 1 per mon_items_consumer.
-	# Bisogna settare un event per la terminazione dei thread alla pressione di CTRL+C, il main thread si mette in join dei due thread
-	threads = list()
-	for topic in topic_names:
-		x = threading.Thread(target=read_from_kafka, args=(topic, kafka_addr, closing_event))
-		threads.append(x)
-		x.start()
+	thread_opc = threading.Thread(target=read_from_kafka, args=(topic_name, kafka_addr, blob_service_client, closing_event))
+	thread_opc.start()
 
 	while(not closing_event.is_set()):
 		sleep(0.1)
+	
+	
+if __name__ == '__main__':
+	main()
+	

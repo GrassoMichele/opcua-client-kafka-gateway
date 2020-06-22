@@ -259,7 +259,7 @@ def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queu
 						SourceTimestamp: {data_to_send['sourceTimestamp']} 
 						ServerTimestamp: {data_to_send['serverTimestamp']}
 						"""))
-						publish_message(kafka_producer, "opcua-polling", 'node', data_to_send)
+						publish_message(kafka_producer, "opcua-nodes", "node", data_to_send)
 					except:
 						# this could be true only if something happens to server or a node has been removed.
 						print(f"\nDetected a problem with node {n} from this server.")							
@@ -281,7 +281,7 @@ def polling_and_monitoring_service (servers, clients_list, nodes_to_handle, queu
 					SourceTimestamp: {mon_item_notif['sourceTimestamp']} 
 					ServerTimestamp: {mon_item_notif['serverTimestamp']}
 					"""))
-					publish_message(kafka_producer, "opcua-monitoreditems", 'node', mon_item_notif)
+					publish_message(kafka_producer, "opcua-nodes", "node", mon_item_notif)
 				except queue.Empty:
 					break
 		else:
