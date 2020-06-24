@@ -2,10 +2,13 @@ import os
 import signal
 import json
 import time
-from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, sub_and_monitored_items_creation, check_servers_status, polling_and_monitoring_service 
+import threading
+from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, polling_service,  sub_and_monitored_items_service
 from utility.kafka_custom_lib import connect_kafka_producer
 
 def main():
+	closing_event = threading.Event()
+
 	with open("config.json") as f:
 		try:
 			data = json.load(f)
@@ -16,41 +19,46 @@ def main():
 	try:
 		servers = data["Servers"]
 		kafka_addr = data["KafkaServer"]
-		pollingRate = data["PollingRate"]
-		publishingInterval = data["PublishingInterval"]
 	except KeyError:
 		print("ERROR in JSON configuration file! Exit...")
 		os._exit(0)
 
-	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']
+	# For Debug purpose to snif packets with Wireshark
+	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']	
 	
 	security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']		
 	
-	# verify json validity
-	nodes_to_handle = read_nodes_from_json(servers)
+	# json validity verification
+	nodes_to_handle, subscriptions_to_handle = read_nodes_from_json(servers)
 	
-	#Servers connection
+	# Servers connection
 	clients_list = servers_connection(servers, security_policies_uri)
 	
-	print("\n"*3 , f"{'-'*60}")
+	print("\n"*3)
+	print(f"{'-'*60}")
 	
-	#Variables Management
+	# Variables Management
 	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
 	
-	subs, queues = [None for i in clients_list], [None for i in clients_list]
+	servers_subs = [None for i in servers]
 	
 	def signal_handler(sig, frame):
+		closing_event.set()
+		print("\nWaiting for threads to finish!")
+		for thread in polling_threads:
+			thread.join()
 		print("\nCLIENT STOPPED! (You pressed CTRL+C)")
 		if kafka_producer is not None:
 			kafka_producer.close()
 		for i, c in enumerate(clients_list):	
-			if c != None:
-				try:
-					if subs[i] != None: 
-						subs[i][0].delete()
-						print(f"\nSubscription {subs[i][0].subscription_id} deleted!")
-				except:
-					print(f"\nUnable to delete subscription {subs[i][0].subscription_id}!")		
+			if c != None:				
+				if servers_subs[i] != None:						
+					for sub in servers_subs[i]:
+						try:
+							sub["sub"].delete()
+							print(f"\nSubscription {sub['subId']} of server {servers[i]['address']} deleted!")
+						except:
+							print(f"\nUnable to delete subscription {sub['subId']} of server {servers[i]['address']}!")		
 				try:
 					# "ns=0;i=2259" is ServerStatus node
 					c.get_node("ns=0;i=2259").get_data_value()	
@@ -62,22 +70,15 @@ def main():
 	
 	signal.signal(signal.SIGINT, signal_handler)
 	
-	sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval)
-		
 	# Kafka Producer
 	kafka_producer = connect_kafka_producer(kafka_addr)
 		
-	time.sleep(0.1)
+	sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event)
+	polling_threads = polling_service(servers, clients_list, nodes_to_handle, kafka_producer, closing_event)
+	
 
-	counter = 1 
 	while(True):
-		#Check on new working servers and servers that are working no more.
-		check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval)
-		print(f"\n{'*'*15} ITERATION n. {counter} {'*'*15}")
-		polling_and_monitoring_service(servers, clients_list, nodes_to_handle, queues, kafka_producer)
-		
-		counter += 1
-		time.sleep(pollingRate)	
+		time.sleep(2)	
 			
 if __name__ == "__main__":			
 	main()

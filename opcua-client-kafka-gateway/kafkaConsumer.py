@@ -45,7 +45,8 @@ def main():
 	def signal_handler(sig, frame):
 		print("\nCONSUMER STOPPED! (You pressed CTRL+C)")
 		closing_event.set() 
-		thread_opc.join()
+		#thread_opc.join()
+		os._exit(0)
 
 	signal.signal(signal.SIGINT, signal_handler)
 		

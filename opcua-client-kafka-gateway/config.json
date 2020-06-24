@@ -1,76 +1,128 @@
 {
 	"Servers": [
 		{
-			"address": "opc.tcp://opcuademo.sterfive.com:26543",			
+			"address": "opc.tcp://MicheleGrassoPC:48010",
+			"subscriptions": [
+				{
+						"subId": 1,
+						"publishingInterval": 6000,
+						"lifetimeCount": 10000, 
+						"maxKeepAliveCount": 3000,
+						"maxNotificationsPerPublish" : 10000,
+						"publishingEnabled": "True",
+						"priority":0						
+				},
+				{
+						"subId": 2,
+						"publishingInterval": 10000,
+						"lifetimeCount": 10000, 
+						"maxKeepAliveCount": 3000,
+						"maxNotificationsPerPublish" : 10000,
+						"publishingEnabled": "True",
+						"priority":0						
+				}
+			],
 			"auth": {
 				"type":"anonymous"
 			},
 			"Variables": [
-				{
-					"nodeId": {"ns":3, "s":"Scalar_Simulation_String"},
+				{	
+					"nodeId": {"ns":2, "s":"Demo.Dynamic.Scalar.String"},
 					"Publishing": {
-					"type": "monitoredItem"
+					"type": "polling",
+					"maxAge": 0,
+					"timestampsToReturn": "Neither",
+					"pollingRate": 5000
 					}
-				}
-			]			
-		},
-		{
-			"address": "opc.tcp://MicheleGrassoPC:48010",
-			"auth": {
-				"type":"certificate",
-				"cert_path":"client_certificate.pem",
-				"private_key_path":"client_key.pem"
-			},
-			"Variables": [
+				},
 				{
 					"nodeId": {"ns":2, "s":"Demo.Dynamic.Scalar.Byte"},
 					"Publishing": {
 						"type": "monitoredItem",
+						"subId": 1,
+						"samplingInterval": 6000,
+						"monitoringMode": "Reporting",						
+						"queueSize": 5,
+						"queueDiscardOldest": "True",
 						"filter": {
 							"Trigger": "StatusValue",
 							"DeadbandType": "Absolute",
 							"DeadbandValue": 1e+2
-						}
+						}								
+					}
+				},
+				{
+					"nodeId": {"ns":2, "s":"Demo.Dynamic.Scalar.DateTime"},
+					"Publishing": {
+						"type": "monitoredItem",
+						"subId": 2,
+						"samplingInterval": 10000,
+						"monitoringMode": "Reporting",						
+						"queueSize": 5,
+						"queueDiscardOldest": "True"						
 					}
 				}
 			]			
 		},
 		{
 			"address": "opc.tcp://michelegrassopc:51210/UA/SampleServer",
+			"subscriptions": [
+				{
+						"subId": 5,
+						"publishingInterval": 3500,
+						"lifetimeCount": 10000, 
+						"maxKeepAliveCount": 3000,
+						"maxNotificationsPerPublish" : 10000,
+						"publishingEnabled": "True",
+						"priority":0						
+				},
+				{
+						"subId": 3,
+						"publishingInterval": 8000,
+						"lifetimeCount": 10000, 
+						"maxKeepAliveCount": 3000,
+						"maxNotificationsPerPublish" : 10000,
+						"publishingEnabled": "True",
+						"priority":0						
+				}
+			],
 			"auth": {
-				"type":"username/password",
-				"username":"pippo",
-				"password":"baudo"
+				"type":"anonymous"
 			},
 			"Variables": [
+				{	
+					"nodeId": {"ns":2, "i":10849},
+					"Publishing": {
+					"type": "polling",
+					"maxAge": 0,
+					"timestampsToReturn": "Both",
+					"pollingRate": 5000
+					}
+				},
 				{
 					"nodeId": {"ns":2, "i":10844},
 					"Publishing": {
-						"type": "polling"
+						"type": "monitoredItem",
+						"subId": 5,
+						"samplingInterval": 3500,
+						"monitoringMode": "Reporting",						
+						"queueSize": 5,
+						"queueDiscardOldest": "True"						
 					}
 				},
 				{
 					"nodeId": {"ns":2, "i":10854},
 					"Publishing": {
-						"type": "polling"
-					}
-				},
-				{
-					"nodeId": {"ns":10, "i":10849},
-					"Publishing": {
-						"type": "monitoredItem"
-					}
-				},
-				{
-					"nodeId": {"ns":2, "i":10868},
-					"Publishing": {
-						"type": "monitoredItem"
+						"type": "monitoredItem",
+						"subId": 3,
+						"samplingInterval": 8000,
+						"monitoringMode": "Reporting",						
+						"queueSize": 5,
+						"queueDiscardOldest": "True"						
 					}
 				}
 			]			
-		}		
+		}
 	],
-	"KafkaServer": "localhost:9092",
-	"PollingRate": 10,
-	"PublishingInterval": 2000
+	"KafkaServer": "localhost:9092"
 }
