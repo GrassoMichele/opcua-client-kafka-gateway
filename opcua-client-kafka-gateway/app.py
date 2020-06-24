@@ -31,20 +31,21 @@ def main():
 	# json validity verification
 	nodes_to_handle, subscriptions_to_handle = read_nodes_from_json(servers)
 	
+	# Kafka Producer
+	kafka_producer = connect_kafka_producer(kafka_addr)
+	
+	servers_subs = [None for i in servers]
+	
 	# Servers connection
-	clients_list = servers_connection(servers, security_policies_uri)
+	clients_list, check_servers_status_thread = servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer, closing_event)
 	
 	print("\n"*3)
 	print(f"{'-'*60}")
 	
-	# Variables Management
-	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
-	
-	servers_subs = [None for i in servers]
-	
 	def signal_handler(sig, frame):
 		closing_event.set()
 		print("\nWaiting for threads to finish!")
+		check_servers_status_thread.join()
 		for thread in polling_threads:
 			thread.join()
 		print("\nCLIENT STOPPED! (You pressed CTRL+C)")
@@ -69,9 +70,6 @@ def main():
 		os._exit(0) 
 	
 	signal.signal(signal.SIGINT, signal_handler)
-	
-	# Kafka Producer
-	kafka_producer = connect_kafka_producer(kafka_addr)
 		
 	sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event)
 	polling_threads = polling_service(servers, clients_list, nodes_to_handle, kafka_producer, closing_event)

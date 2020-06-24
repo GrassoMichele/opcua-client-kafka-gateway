@@ -155,10 +155,37 @@ def client_connection(index, server, security_policies_uri, printable=False):
 		return client		
 	except Exception as ex:
 		print(f"\nEXCEPTION in client connection: {ex.__class__, ex.args}")
-		return
-	#DOMANDA: Server Application Instance Certificate validation?	
-
-def servers_connection(servers, security_policies_uri):
+		return	
+	
+def check_servers_status(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer, closing_event):
+	print("\nCheck_servers_status started!")
+	while(not closing_event.is_set()):			
+		for i, s in enumerate(servers):
+			try:
+				# "ns=0;i=2259" is ServerStatus node
+				clients_list[i].get_node("ns=0;i=2259").get_data_value()
+			except:
+				# check if previously working servers are still up
+				if s["working"] != False:
+					print(f"\nERROR: SERVER {s['address']} IS DOWN!")
+					s["working"], clients_list[i], servers_subs[i] = False, None, None
+					
+				# check if previously down servers are up now 
+				if s["working"] == False:
+					# best_endpoint_selection and client_connection  
+					client = client_connection(i, s, security_policies_uri, printable=False)
+					if client != None: 
+						clients_list[i] = client
+						s["working"] = True
+						print(f"\nCONNECTED to Server {s['address']}!")				
+						# sub and monitored_items creation 
+						sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event)
+						
+		# this way we remove wrong nodes from NEW servers and it should remove a node if exists no more (has been deleted).
+		removing_invalid_nodes(clients_list, servers, nodes_to_handle)	
+		sleep(10)
+	
+def servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer, closing_event):
 	clients_list = [None for s in servers]
 	for i,s in enumerate(servers):	
 		s["working"] = False
@@ -184,7 +211,10 @@ def servers_connection(servers, security_policies_uri):
 			clients_list[i] = client
 			s["working"] = True
 			print(f"\nConnected to Server {s['address']}!")
-	return clients_list
+	
+	check_servers_status_thread = threading.Thread(target=check_servers_status, args=(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer, closing_event,))
+	check_servers_status_thread.start()
+	return clients_list, check_servers_status_thread
 
 # removing invalid (not in address space) nodes from running servers 
 def removing_invalid_nodes(clients_list, servers, nodes_to_handle):
@@ -228,33 +258,6 @@ class SubHandler(object):
 			publish_message(self.kafka_producer, "opcua-nodes", "node", notification)
 		except:
 			print("\nError with monitored item notification!")				
-			
-'''	
-def check_servers_status(servers, clients_list, nodes_to_handle, subs, queues, security_policies_uri, publishingInterval):
-	for i, s in enumerate(servers):
-		try:
-			# "ns=0;i=2259" is ServerStatus node
-			clients_list[i].get_node("ns=0;i=2259").get_data_value()	
-		except:
-			# check if previously working servers are still up
-			if s["working"] != False:
-				print(f"\nERROR: SERVER {s['address']} IS DOWN!")
-				s["working"], clients_list[i], subs[i] = False, None, None
-				
-			# check if previously down servers are now up
-			if s["working"] == False:
-				# best_endpoint_selection and client_connection  
-				client = client_connection(i, s, security_policies_uri, printable=False)
-				if client != None: 
-					clients_list[i] = client
-					s["working"] = True
-					print(f"\nCONNECTED to Server {s['address']}!")				
-				# sub and monitored_items creation 
-				sub_and_monitored_items_creation(clients_list, servers, nodes_to_handle, subs, queues, publishingInterval)
-					
-	# this way we remove wrong nodes from NEW servers and it should remove a node if exists no more (has been deleted).
-	removing_invalid_nodes(clients_list, servers, nodes_to_handle)
-'''
 
 def polling_function(pollingRate, nodes, clients_list, kafka_producer, closing_event):
 	while(not closing_event.is_set()):		
