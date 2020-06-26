@@ -1,0 +1,5 @@
+{
+  "projects": {
+    "default": "opcua-client-kafka-gateway"
+  }
+}

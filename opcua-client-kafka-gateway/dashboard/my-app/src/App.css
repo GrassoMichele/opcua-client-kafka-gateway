@@ -1,0 +1,87 @@
+body{
+  margin: 0;
+  background: rgb(0,0,0);
+  background: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(204,203,203,1) 100%);
+    background-size: 400% 400%;
+}
+
+  label{
+    margin-top:20px;
+    color: black;
+    font-size:large;
+
+  }
+
+  .Add-Button {
+    background-color: rgb(10,65,50);
+    border: none;
+    color:white;
+    padding: 10px 28px;
+    text-align: center;
+    font-size: 30px;
+  }
+
+  .Buttons{
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+    .upload-data{
+      align-items: center;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .panel-heading{
+      margin-top: 20px;
+      align-items: center;
+      display: flex;
+      justify-content: center;
+    }
+
+    .upload-btn-wrapper {
+      position: relative;
+      overflow: hidden;
+      align-items: center;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .file-btn {
+      border: 2px solid gray;
+      color: gray;
+      background-color: white;
+      padding: 8px 20px;
+      border-radius:  8px;
+      font-size: 20px;
+      font-weight:  bold;
+    }
+
+    .upload-btn-wrapper input[type=file] {
+      font-size: 100px;
+      position: absolute;
+      left:0;
+      top:0;
+      opacity:0;
+    }
+
+    .footer{
+      margin-left: 10px;
+      bottom:0px;
+      margin-right: 10px;
+      height: 10rem;
+      align-items: center;
+      padding-top: 50px;
+      margin-top: 50px;
+      color:black;
+      opacity: 0.06;
+
+    } 
+
+    .btn{
+      margin-bottom: 10px;
+    }
