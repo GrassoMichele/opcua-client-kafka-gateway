@@ -69,7 +69,7 @@
 			"subscriptions": [
 				{
 						"subId": 5,
-						"publishingInterval": 3500,
+						"publishingInterval": 10000,
 						"lifetimeCount": 10000, 
 						"maxKeepAliveCount": 3000,
 						"maxNotificationsPerPublish" : 10000,
@@ -104,9 +104,9 @@
 					"Publishing": {
 						"type": "monitoredItem",
 						"subId": 5,
-						"samplingInterval": 3500,
+						"samplingInterval": 5000,
 						"monitoringMode": "Reporting",						
-						"queueSize": 5,
+						"queueSize": 50,
 						"queueDiscardOldest": "True"						
 					}
 				},
@@ -119,36 +119,6 @@
 						"monitoringMode": "Reporting",						
 						"queueSize": 5,
 						"queueDiscardOldest": "True"						
-					}
-				}
-			]			
-		},
-		{
-			"address": "opc.tcp://opcuademo.sterfive.com:26543",
-			"subscriptions": [
-				{
-						"subId": 1,
-						"publishingInterval": 7000,
-						"lifetimeCount": 10000, 
-						"maxKeepAliveCount": 3000,
-						"maxNotificationsPerPublish" : 10000,
-						"publishingEnabled": "True",
-						"priority":0						
-				}
-			],
-			"auth": {
-				"type":"anonymous"
-			},
-			"Variables": [
-				{
-					"nodeId": {"ns":3, "s":"Scalar_Simulation_String"},
-					"Publishing": {
-						"type": "monitoredItem",
-						"subId": 1,
-						"samplingInterval": 7000,
-						"monitoringMode": "Reporting",						
-						"queueSize": 5,
-						"queueDiscardOldest": "True"					
 					}
 				}
 			]			

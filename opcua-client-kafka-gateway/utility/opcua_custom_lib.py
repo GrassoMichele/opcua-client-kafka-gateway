@@ -11,6 +11,7 @@ from opcua.ua.uaprotocol_auto import MessageSecurityMode, DataChangeFilter, Data
 from opcua.common.subscription import SubscriptionItemData
 from opcua.ua.uatypes import NodeId
 from opcua.common.node import Node
+
 # The following three lines of imports are for BadSessionClosed handling.
 from opcua.client import ua_client
 from opcua.ua.ua_binary import struct_from_binary
@@ -154,7 +155,7 @@ def client_connection(index, server, security_policies_uri, printable=False):
 		client.connect()		
 		return client		
 	except Exception as ex:
-		print(f"\nEXCEPTION in client connection: {ex.__class__, ex.args}")
+		#print(f"\nEXCEPTION in client connection: {ex.__class__, ex.args}")
 		return	
 	
 def check_servers_status(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer_info, closing_event):
@@ -292,7 +293,8 @@ def polling_function(pollingRate, nodes, clients_list, kafka_producer_info, clos
 				
 			except:
 				# this could be true only if something happens to server or a node has been removed.
-				print(f"\nDetected a problem with node {n} from this server.")	
+				#print(f"\nDetected a problem with node {n} from this server.")	
+				pass
 		for index in range(int(pollingRate/10)):
 			sleep(0.01)				
 	
@@ -319,9 +321,9 @@ def polling_service (servers, clients_list, nodes_to_handle, kafka_producer_info
 						nodes_for_pollingRate[pollingRate] = list()	
 						nodes_for_pollingRate[pollingRate].append(n)
 			else:
-				print("NO nodes to read for this server!")
+				print(f"NO nodes to read for server {s['address']}!")
 		else:
-			print("Server is DOWN!")
+			print(f"Server {s['address']} is DOWN!")
 			
 	polling_threads = list()
 	for pollingRate in nodes_for_pollingRate:
@@ -470,7 +472,10 @@ def sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subs
 # This function is a patching of _call_publish_callback function from UaClient module to handle unexpected server closing.
 def our_call_publish_callback(self, future):
 	self.logger.info("call_publish_callback")
-	data = future.result()
+	try:
+		data = future.result()
+	except:
+		pass
 	# check if answer looks ok
 	try:
 		self._uasocket.check_answer(data, "while waiting for publish response")
