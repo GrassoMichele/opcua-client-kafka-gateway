@@ -122,7 +122,39 @@
 					}
 				}
 			]			
+		},
+		{
+			"address": "opc.tcp://opcuademo.sterfive.com:26543",
+			"subscriptions": [
+				{
+						"subId": 1,
+						"publishingInterval": 7000,
+						"lifetimeCount": 10000, 
+						"maxKeepAliveCount": 3000,
+						"maxNotificationsPerPublish" : 10000,
+						"publishingEnabled": "True",
+						"priority":0						
+				}
+			],
+			"auth": {
+				"type":"anonymous"
+			},
+			"Variables": [
+				{
+					"nodeId": {"ns":3, "s":"Scalar_Simulation_String"},
+					"Publishing": {
+						"type": "monitoredItem",
+						"subId": 1,
+						"samplingInterval": 7000,
+						"monitoringMode": "Reporting",						
+						"queueSize": 5,
+						"queueDiscardOldest": "True"					
+					}
+				}
+			]			
 		}
 	],
-	"KafkaServer": "localhost:9092"
+	"KafkaServer": "rocket-01.srvs.cloudkafka.com:9094,rocket-02.srvs.cloudkafka.com:9094,rocket-03.srvs.cloudkafka.com:9094",
+	"topic": "5qkeygj1-opcua-nodes" 
+
 }

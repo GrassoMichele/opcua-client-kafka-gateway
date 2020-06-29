@@ -1,4 +1,4 @@
 {
-	"KafkaServer": "localhost:9092",
-	"topic":"opcua-nodes"
+	"KafkaServer": "rocket-01.srvs.cloudkafka.com:9094,rocket-02.srvs.cloudkafka.com:9094,rocket-03.srvs.cloudkafka.com:9094",
+	"topic": "5qkeygj1-opcua-nodes"
 }

@@ -157,7 +157,7 @@ def client_connection(index, server, security_policies_uri, printable=False):
 		print(f"\nEXCEPTION in client connection: {ex.__class__, ex.args}")
 		return	
 	
-def check_servers_status(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer, closing_event):
+def check_servers_status(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer_info, closing_event):
 	print("\nCheck_servers_status started!")
 	while(not closing_event.is_set()):			
 		for i, s in enumerate(servers):
@@ -179,13 +179,13 @@ def check_servers_status(servers, clients_list, nodes_to_handle, servers_subs, s
 						s["working"] = True
 						print(f"\nCONNECTED to Server {s['address']}!")				
 						# sub and monitored_items creation 
-						sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event)
+						sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer_info, closing_event)
 						
 		# this way we remove wrong nodes from NEW servers and it should remove a node if exists no more (has been deleted).
 		removing_invalid_nodes(clients_list, servers, nodes_to_handle)	
 		sleep(10)
 	
-def servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer, closing_event):
+def servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer_info, closing_event):
 	clients_list = [None for s in servers]
 	for i,s in enumerate(servers):	
 		s["working"] = False
@@ -212,7 +212,7 @@ def servers_connection(servers, security_policies_uri, nodes_to_handle, servers_
 			s["working"] = True
 			print(f"\nConnected to Server {s['address']}!")
 	
-	check_servers_status_thread = threading.Thread(target=check_servers_status, args=(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer, closing_event,))
+	check_servers_status_thread = threading.Thread(target=check_servers_status, args=(servers, clients_list, nodes_to_handle, servers_subs, security_policies_uri, subscriptions_to_handle, kafka_producer_info, closing_event,))
 	check_servers_status_thread.start()
 	return clients_list, check_servers_status_thread
 
@@ -238,9 +238,9 @@ def removing_invalid_nodes(clients_list, servers, nodes_to_handle):
 					nodes_to_handle[i][0].remove(n)				
 
 class SubHandler(object):
-	def __init__(self, server_url, kafka_producer):
+	def __init__(self, server_url, kafka_producer_info):
 		self.server_url = server_url
-		self.kafka_producer= kafka_producer
+		self.kafka_producer_info = kafka_producer_info
 		
 	def datachange_notification(self, node, val, data):
 		try:
@@ -255,11 +255,11 @@ class SubHandler(object):
 				ServerTimestamp: {notification['serverTimestamp']}
 				"""))		
 			
-			publish_message(self.kafka_producer, "opcua-nodes", "node", notification)
+			publish_message(self.kafka_producer_info, "node", notification)
 		except:
 			print("\nError with monitored item notification!")				
 
-def polling_function(pollingRate, nodes, clients_list, kafka_producer, closing_event):
+def polling_function(pollingRate, nodes, clients_list, kafka_producer_info, closing_event):
 	while(not closing_event.is_set()):		
 		for n in nodes:
 			try:
@@ -278,7 +278,7 @@ def polling_function(pollingRate, nodes, clients_list, kafka_producer, closing_e
 				data_v = clients_list[n["server_idx"]].uaclient.read(parameters)[0]
 				data_to_send = {"server":clients_list[n["server_idx"]].server_url.netloc, "node":n["node"], "value":str(data_v.Value.Value), "status":data_v.StatusCode.name, "sourceTimestamp":str(data_v.SourceTimestamp), "serverTimestamp":str(data_v.ServerTimestamp)}
 				
-				publish_message(kafka_producer, "opcua-nodes", "node", data_to_send)
+				publish_message(kafka_producer_info, "node", data_to_send)
 				
 				print(dedent(f"""
 				Time: {datetime.now()}
@@ -297,7 +297,7 @@ def polling_function(pollingRate, nodes, clients_list, kafka_producer, closing_e
 			sleep(0.01)				
 	
 
-def polling_service (servers, clients_list, nodes_to_handle, kafka_producer, closing_event):
+def polling_service (servers, clients_list, nodes_to_handle, kafka_producer_info, closing_event):
 	# READ SERVICE e MONITORED ITEMS notifications function
 	nodes_for_pollingRate = {}
 	for i, s in enumerate(servers): 	
@@ -327,7 +327,7 @@ def polling_service (servers, clients_list, nodes_to_handle, kafka_producer, clo
 	for pollingRate in nodes_for_pollingRate:
 		# dobbiamo passare alla funzione i nodi.
 		#for nodes in nodes_for_pollingRate[pollingRate]:
-		x = threading.Thread(target=polling_function, args=(pollingRate, nodes_for_pollingRate[pollingRate], clients_list, kafka_producer, closing_event,))
+		x = threading.Thread(target=polling_function, args=(pollingRate, nodes_for_pollingRate[pollingRate], clients_list, kafka_producer_info, closing_event,))
 		polling_threads.append(x)
 		x.start()
 				
@@ -421,7 +421,7 @@ def create_monitored_items(sub, dirty_nodes, attr):
 		
 	return mids	
 					
-def sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event):		
+def sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer_info, closing_event):		
 	print(f"\nSUBSCRIPTIONS CREATION...")
 	print(f"\n{'-'*60}")
 	print(f"\n{'*'*60}")
@@ -447,7 +447,7 @@ def sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subs
 						sub_params.MaxNotificationsPerPublish = server_sub_to_handle["maxNotificationsPerPublish"]
 						sub_params.PublishingEnabled = server_sub_to_handle["publishingEnabled"]
 						sub_params.Priority = server_sub_to_handle["priority"]
-						sub = clients_list[i].create_subscription(sub_params, SubHandler(clients_list[i].server_url.netloc, kafka_producer))
+						sub = clients_list[i].create_subscription(sub_params, SubHandler(clients_list[i].server_url.netloc, kafka_producer_info))
 						print(f"\nSubscription {server_sub_to_handle['subId']} created!")
 					except:
 						print(f"\nCannot create subscription {server_sub_to_handle['subId']} for server {s['address']}! All nodes to monitor will be skipped.")

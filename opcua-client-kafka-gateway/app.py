@@ -5,6 +5,7 @@ import time
 import threading
 from utility.opcua_custom_lib import servers_connection, read_nodes_from_json, removing_invalid_nodes, polling_service,  sub_and_monitored_items_service
 from utility.kafka_custom_lib import connect_kafka_producer
+from cryptography.fernet import Fernet
 
 def main():
 	closing_event = threading.Event()
@@ -19,12 +20,17 @@ def main():
 	try:
 		servers = data["Servers"]
 		kafka_addr = data["KafkaServer"]
+		topic = data["topic"]
 	except KeyError:
 		print("ERROR in JSON configuration file! Exit...")
 		os._exit(0)
 
-	# For Debug purpose to snif packets with Wireshark
-	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']	
+	# Simmetric encryption key
+	with open("secret.txt", "rb") as file:
+		key = file.read()
+	f = Fernet(key)	
+		
+	# For Debug purpose to snif packets with Wireshark	#security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None']	
 	
 	security_policies_uri=['http://opcfoundation.org/UA/SecurityPolicy#None', 'http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256', 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256']		
 	
@@ -32,12 +38,13 @@ def main():
 	nodes_to_handle, subscriptions_to_handle = read_nodes_from_json(servers)
 	
 	# Kafka Producer
-	kafka_producer = connect_kafka_producer(kafka_addr)
+	kafka_producer = connect_kafka_producer(kafka_addr)		
+	kafka_producer_info = {"instance":kafka_producer, "topic":topic, "fernet_obj":f}
 	
 	servers_subs = [None for i in servers]
 	
 	# Servers connection
-	clients_list, check_servers_status_thread = servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer, closing_event)
+	clients_list, check_servers_status_thread = servers_connection(servers, security_policies_uri, nodes_to_handle, servers_subs, subscriptions_to_handle, kafka_producer_info, closing_event)
 	
 	print("\n"*3)
 	print(f"{'-'*60}")
@@ -49,8 +56,8 @@ def main():
 		for thread in polling_threads:
 			thread.join()
 		print("\nCLIENT STOPPED! (You pressed CTRL+C)")
-		if kafka_producer is not None:
-			kafka_producer.close()
+		if kafka_producer_info["instance"] is not None:
+			kafka_producer_info["instance"].close()
 		for i, c in enumerate(clients_list):	
 			if c != None:				
 				if servers_subs[i] != None:						
@@ -71,8 +78,8 @@ def main():
 	
 	signal.signal(signal.SIGINT, signal_handler)
 		
-	sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer, closing_event)
-	polling_threads = polling_service(servers, clients_list, nodes_to_handle, kafka_producer, closing_event)
+	sub_and_monitored_items_service(servers, clients_list, nodes_to_handle, subscriptions_to_handle, servers_subs, kafka_producer_info, closing_event)
+	polling_threads = polling_service(servers, clients_list, nodes_to_handle, kafka_producer_info, closing_event)
 	
 
 	while(True):

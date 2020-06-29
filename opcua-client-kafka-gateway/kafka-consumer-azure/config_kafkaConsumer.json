@@ -1,4 +1,5 @@
 {
-	"KafkaServer": "localhost:9092",
+	"KafkaServer": "rocket-01.srvs.cloudkafka.com:9094,rocket-02.srvs.cloudkafka.com:9094,rocket-03.srvs.cloudkafka.com:9094",
+	"topic": "5qkeygj1-opcua-nodes",
 	"AzureBlobStorageConnectionString": "DefaultEndpointsProtocol=https;AccountName=opcuakafkastorage;AccountKey=ejnCC1fFRIoNSMMAkKSX9hF8G3Smp+OcwtbPZmYPfefQIp4/kkExVxxOyN7xz2pEIxM5rYvlNOP/6G+nhTBhwQ==;EndpointSuffix=core.windows.net"
 }
