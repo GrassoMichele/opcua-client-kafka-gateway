@@ -1,7 +1,7 @@
 azure-core==1.6.0
 azure-storage-blob==12.3.2
 opcua==0.98.11
-cryptography==2.9.2
+cryptography==3.2
 kafka-python==2.0.1
 lxml==4.5.1
 pytz==2020.1
